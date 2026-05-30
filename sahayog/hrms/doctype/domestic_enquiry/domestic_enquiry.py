@@ -26,21 +26,11 @@ class DomesticEnquiry(Document):
 # ✅ ONLY ADDITION
     def on_submit(self):
         """
-        Auto-send Domestic Enquiry email on submit.
-        Existing manual send email logic remains unchanged.
+        Auto-send Domestic Enquiry email on submit using centralized utility.
         """
         try:
-            emp = frappe.get_doc("Employee", self.employee_id)
-
-            # Do not block submit if email missing
-            if not emp.company_email:
-                frappe.msgprint(
-                    "Domestic Enquiry submitted successfully, but email was not sent because employee email is missing.",
-                    indicator="orange"
-                )
-                return
-
-            send_domestic_enquiry_email(self.name)
+            from sahayog.utils.hr_utils import send_hr_workflow_email
+            send_hr_workflow_email(self.name, "Domestic Enquiry", template_name="Domestic Enquiry Notice", print_format="Domestic Enquiry")
 
             frappe.msgprint(
                 "Domestic Enquiry submitted successfully and notice email sent to employee.",
@@ -64,49 +54,6 @@ def check_employee_email(employee):
 # Send Domestic Enquiry Notice Email
 @frappe.whitelist()
 def send_domestic_enquiry_email(docname):
-
-    # Load Domestic Enquiry Document
-    doc = frappe.get_doc("Domestic Enquiry", docname)
-    emp = frappe.get_doc("Employee", doc.employee_id)
-
-    # Check Email
-    final_email = emp.company_email
-    if not final_email:
-        frappe.throw("No email found for this employee.")
-
-    # Prepare data for template
-    doc_dict = doc.as_dict()
-
-    # Format date
-    from frappe.utils import formatdate
-
-    if doc.date_of_enquiry:
-        doc_dict["date_of_enquiry"] = formatdate(doc.date_of_enquiry)
-
-    # Load Email Template
-    template = frappe.get_doc("Email Template", "Domestic Enquiry Notice")
-
-    # Render Email
-    message = frappe.render_template(template.response_html, doc_dict)
-    subject = frappe.render_template(template.subject, doc_dict)
-
-  # Attach Print Format → **Domestic Enquiry Notice**
-    attachments = [
-        frappe.attach_print(
-            doctype="Domestic Enquiry",
-            name=docname,
-            print_format="Domestic Enquiry",
-            file_name=f"{docname}"
-        )
-    ]
-    # Send Email
-    frappe.sendmail(
-        recipients=[final_email],
-        subject=subject,
-        message=message,
-        attachments=attachments,
-        reference_doctype="Domestic Enquiry",
-        reference_name=docname,
-        now=False
-    )
-    return "Email Sent"
+    """Send Domestic Enquiry Notice Email using centralized dynamic utility."""
+    from sahayog.utils.hr_utils import send_hr_workflow_email
+    return send_hr_workflow_email(docname, "Domestic Enquiry", template_name="Domestic Enquiry Notice", print_format="Domestic Enquiry")
