@@ -12,23 +12,11 @@ class DisciplinaryCase(Document):
     
     def on_submit(self):
         """
-        Auto-send SCN email on submit.
-        Manual Send Email button remains unchanged.
+        Auto-send SCN email on submit using centralized utility.
         """
         try:
-            # Fetch employee
-            emp = frappe.get_doc("Employee", self.employee_id)
-
-            # If employee email missing → do not block submit
-            if not emp.company_email:
-                frappe.msgprint(
-                    "Case submitted successfully, but email was not sent because employee email is missing.",
-                    indicator="orange"
-                )
-                return
-
-            # Send SCN email
-            send_scn_email(docname=self.name)
+            from sahayog.utils.hr_utils import send_hr_workflow_email
+            send_hr_workflow_email(self.name, "Disciplinary Case", template_name="Disciplinary - SCN", print_format="Disciplinary Case Notice")
 
             frappe.msgprint(
                 "Case submitted successfully and SCN email sent to employee.",
@@ -242,16 +230,9 @@ def save_and_send_email(employee, email, docname):
 
 @frappe.whitelist()
 def send_scn_email(docname):
-        """Send welcome notification for first time membership"""
-        try:
-            notification = frappe.get_doc("Notification", "Show Cause Notice")
-            doc = frappe.get_doc("Disciplinary Case", docname)
-            notification.send(doc=doc)
-            frappe.logger().info(f"Show Cause Notice notification sent to employee: {doc.employee_id}")
-        except frappe.DoesNotExistError:
-            frappe.log_error("Notification 'Show Cause Notice' not found")
-        except Exception as e:
-            frappe.log_error(f"Failed to send show cause notice notification: {str(e)}")
+    """Send SCN email using centralized dynamic utility."""
+    from sahayog.utils.hr_utils import send_hr_workflow_email
+    return send_hr_workflow_email(docname, "Disciplinary Case", template_name="Disciplinary - SCN", print_format="Disciplinary Case Notice")
 
 
 # save employee email only
