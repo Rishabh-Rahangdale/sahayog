@@ -16,23 +16,11 @@ class ResponsetoSCN(Document):
 # ✅ AUTO EMAIL ON SUBMIT (NON-BLOCKING)
     def on_submit(self):
         """
-        Auto-send Response to SCN email on submit.
-        Does NOT block submit if email fails.
-        Manual Send Email button remains unchanged.
+        Auto-send Response to SCN email on submit using centralized utility.
         """
         try:
-            emp = frappe.get_doc("Employee", self.employee_id)
-
-            # Email missing → do not block submit
-            if not emp.company_email:
-                frappe.msgprint(
-                    "Response to SCN submitted successfully, but email was not sent because employee email is missing.",
-                    indicator="orange"
-                )
-                return
-
-            # Send email
-            send_response_scn_email(self.name)
+            from sahayog.utils.hr_utils import send_hr_workflow_email
+            send_hr_workflow_email(self.name, "Response to SCN")
 
             frappe.msgprint(
                 "Response to SCN submitted successfully and email sent to employee.",
@@ -54,49 +42,6 @@ def check_employee_email(employee):
 
 @frappe.whitelist()
 def send_response_scn_email(docname):
-    doc = frappe.get_doc("Response to SCN", docname)
-
-    # Convert to dictionary for Jinja template
-    doc_dict = doc.as_dict()
-
-    # Optional: format dates
-    if doc_dict.get("issue_occurrence_date"):
-        doc_dict["issue_occurrence_date"] = formatdate(doc_dict["issue_occurrence_date"])
-
-    # Load template
-    template = frappe.get_doc("Email Template", "Response to SCN")
-    
-    # Render using dict
-    message = frappe.render_template(template.response_html, {"doc": doc_dict})
-    subject = frappe.render_template(template.subject, doc_dict)
-
-    # Get employee email
-    emp = frappe.get_doc("Employee", doc.employee_id)
-    final_email = emp.company_email
-    if not final_email:
-        frappe.throw("No email found for this employee.")
-
-    # Attachments if any
-    attachments = []
-    if doc_dict.get("document_upload"):
-        try:
-            file_doc = frappe.get_doc("File", {"file_url": doc_dict["document_upload"]})
-            attachments.append({
-                "fname": file_doc.file_name,
-                "fcontent": file_doc.get_content()
-            })
-        except Exception as e:
-            frappe.log_error(f"Failed to attach file: {str(e)}", "Response to SCN Email")
-
-    # Send email
-    frappe.sendmail(
-        recipients=[final_email],
-        subject=subject,
-        message=message,
-        attachments=attachments,
-        reference_doctype="Response to SCN",
-        reference_name=docname,
-        now=True
-    )
-
-    return "Email Sent"
+    """Send Response to SCN email using centralized dynamic utility."""
+    from sahayog.utils.hr_utils import send_hr_workflow_email
+    return send_hr_workflow_email(docname, "Response to SCN")
