@@ -44,12 +44,24 @@ def get_hr_cc_recipients(doctype, employee_id, docname=None):
                 cc_list.append(manager_email)
 
     # 3. Fetch Concern HR's email (Who created the case)
+    hr_employee_id = None
     if docname:
-        hr_employee_id = frappe.db.get_value(doctype, docname, "hr_employee_id")
-        if hr_employee_id:
-            hr_email = frappe.db.get_value("Employee", hr_employee_id, "company_email")
-            if hr_email:
-                cc_list.append(hr_email)
+        meta = frappe.get_meta(doctype)
+        if meta.has_field("hr_employee_id"):
+            hr_employee_id = frappe.db.get_value(doctype, docname, "hr_employee_id")
+        
+        # If not found in current doc, try to fetch from parent linked case_id
+        if not hr_employee_id and meta.has_field("case_id"):
+            case_info = frappe.db.get_value(doctype, docname, ["case_id"], as_dict=True)
+            if case_info and case_info.case_id:
+                parent_dt = meta.get_field("case_id").options
+                if parent_dt and frappe.get_meta(parent_dt).has_field("hr_employee_id"):
+                    hr_employee_id = frappe.db.get_value(parent_dt, case_info.case_id, "hr_employee_id")
+
+    if hr_employee_id:
+        hr_email = frappe.db.get_value("Employee", hr_employee_id, "company_email")
+        if hr_email:
+            cc_list.append(hr_email)
             
     return list(set([e for e in cc_list if e]))
 
@@ -156,7 +168,12 @@ def notify_cc_on_incoming_reply(doc, method):
        and doc.reference_doctype in [
            "Unauthorized Absence", 
            "Reminder Of Unauthorized Absence", 
-           "Disciplinary Case"
+           "Disciplinary Case",
+           "Suspension Process",
+           "Response to SCN",
+           "Domestic Enquiry",
+           "Enquiry Reminder",
+           "Case Closure"
        ]:
         
         # Get the original case document to find the employee
