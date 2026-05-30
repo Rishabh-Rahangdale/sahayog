@@ -34,25 +34,11 @@ class EnquiryReminder(Document):
 # ✅ AUTO EMAIL ON SUBMIT (NON-BLOCKING)
     def on_submit(self):
         """
-        Auto-send Enquiry Reminder email on submit.
-        Manual Send Email button remains unchanged.
-        Does NOT block submit if email fails.
+        Auto-send Enquiry Reminder email on submit using centralized utility.
         """
         try:
-            emp = frappe.get_doc("Employee", self.employee_id)
-
-            if not emp.company_email:
-                frappe.msgprint(
-                    "Enquiry Reminder submitted successfully, but email was not sent because employee email is missing.",
-                    indicator="orange",
-                )
-                return
-
-            # Default print format for auto email
-            send_reminder_enquiry_email(
-                docname=self.name,
-                print_format="Reminder Notice Of Enquiry",
-            )
+            from sahayog.utils.hr_utils import send_hr_workflow_email
+            send_hr_workflow_email(self.name, "Enquiry Reminder", template_name="Reminder Notice of Enquiry", print_format="Reminder Notice Of Enquiry")
 
             frappe.msgprint(
                 "Enquiry Reminder submitted successfully and email sent to employee.",
@@ -73,45 +59,7 @@ def check_employee_email(employee):
     return emp.company_email if emp.company_email else None
 
 @frappe.whitelist()
-def send_reminder_enquiry_email(docname, print_format):
-
-    doc = frappe.get_doc("Enquiry Reminder", docname)
-    emp = frappe.get_doc("Employee", doc.employee_id)
-
-    if not emp.company_email:
-        frappe.throw("No email found for this employee.")
-
-    doc_dict = doc.as_dict()
-
-    from frappe.utils import formatdate
-
-    if doc.date_of_2nd_enquiry:
-        doc_dict["date_of_2nd_enquiry"] = formatdate(doc.date_of_2nd_enquiry)
-
-    if doc.issue_occurrence_date:
-        doc_dict["issue_occurrence_date"] = formatdate(doc.issue_occurrence_date)
-
-    template = frappe.get_doc("Email Template", "Reminder Notice of Enquiry")
-    message = frappe.render_template(template.response_html, doc_dict)
-    subject = frappe.render_template(template.subject, doc_dict)
-
-    attachments = [
-        frappe.attach_print(
-            doctype="Enquiry Reminder",
-            name=docname,
-            print_format=print_format,
-            file_name=f"{docname}"
-        )
-    ]
-
-    frappe.sendmail(
-        recipients=[emp.company_email],
-        subject=subject,
-        message=message,
-        attachments=attachments,
-        reference_doctype="Enquiry Reminder",
-        reference_name=docname,
-        now=False
-    )
-
-    return "Email Sent"
+def send_reminder_enquiry_email(docname, print_format=None):
+    """Send Enquiry Reminder email using centralized dynamic utility."""
+    from sahayog.utils.hr_utils import send_hr_workflow_email
+    return send_hr_workflow_email(docname, "Enquiry Reminder", template_name="Reminder Notice of Enquiry", print_format=print_format or "Reminder Notice Of Enquiry")
