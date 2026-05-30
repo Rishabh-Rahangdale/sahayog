@@ -81,21 +81,11 @@ class CaseClosure(Document):
 # ✅ ONLY ADDITION — existing logic untouched
     def on_submit(self):
         """
-        Auto-send Case Closure email on submit.
-        Manual Send Email button remains unchanged.
+        Auto-send Case Closure email on submit using centralized utility.
         """
         try:
-            emp = frappe.get_doc("Employee", self.employee_id)
-
-            # Do not block submit if email missing
-            if not emp.company_email:
-                frappe.msgprint(
-                    "Case Closure submitted successfully, but email was not sent because employee email is missing.",
-                    indicator="orange"
-                )
-                return
-
-            send_case_closure_email(self.name)
+            from sahayog.utils.hr_utils import send_hr_workflow_email
+            send_hr_workflow_email(self.name, "Case Closure", template_name="Case Closure Update")
 
             frappe.msgprint(
                 "Case Closure submitted successfully and email sent to employee.",
@@ -646,44 +636,9 @@ def check_employee_email(employee):
 # ---------------------------------------------------------
 @frappe.whitelist()
 def send_case_closure_email(docname, print_format=None):
-
-    doc = frappe.get_doc("Case Closure", docname)
-    emp = frappe.get_doc("Employee", doc.employee_id)
-
-    if not emp.company_email:
-        frappe.throw("No email found for this employee.")
-
-    # Directly convert doc to dict (NO date formatting)
-    doc_dict = doc.as_dict()
-
-    # Load Email Template
-    template = frappe.get_doc("Email Template", "Case Closure Update")
-    message = frappe.render_template(template.response_html, doc_dict)
-    subject = frappe.render_template(template.subject, doc_dict)
-
-    # Attach selected print format if provided
-    attachments = []
-    if print_format:
-        attachments.append(
-            frappe.attach_print(
-                doctype="Case Closure",
-                name=docname,
-                print_format=print_format,
-                file_name=f"{docname}.pdf"
-            )
-        )
-
-    frappe.sendmail(
-        recipients=[emp.company_email],
-        subject=subject,
-        message=message,
-        attachments=attachments,
-        reference_doctype="Case Closure",
-        reference_name=docname,
-        now=False
-    )
-
-    return "Email Sent"
+    """Send Case Closure email using centralized dynamic utility."""
+    from sahayog.utils.hr_utils import send_hr_workflow_email
+    return send_hr_workflow_email(docname, "Case Closure", template_name="Case Closure Update", print_format=print_format)
 # ============================================================================
 # FETCH EMPLOYEE LINKED TO LOGGED-IN USER
 # ============================================================================
