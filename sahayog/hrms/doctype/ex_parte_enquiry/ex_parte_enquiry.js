@@ -27,6 +27,37 @@ frappe.ui.form.on("Ex Parte Enquiry", {
 
   refresh(frm) {
     if (!frm.is_new()) {
+      frm.add_custom_button("Send Email", function () {
+        frappe.call({
+          method: "sahayog.hrms.doctype.ex_parte_enquiry.ex_parte_enquiry.check_employee_email",
+          args: { employee: frm.doc.employee_id },
+          callback(r) {
+            let email = r.message;
+            if (email) {
+              frappe.confirm(
+                `Are you sure you want to send the Ex Parte Enquiry Email to:<br><b>${email}</b>?`,
+                function () {
+                  frappe.call({
+                    method: "sahayog.hrms.doctype.ex_parte_enquiry.ex_parte_enquiry.send_ex_parte_enquiry_email",
+                    args: { docname: frm.doc.name },
+                    freeze: true,
+                    freeze_message: __("Sending Ex Parte Enquiry Email..."),
+                    callback() {
+                      frappe.msgprint(__("Ex Parte Enquiry Email sent successfully!"));
+                    },
+                  });
+                },
+              );
+            } else {
+              frappe.msgprint({
+                title: __("Email Not Found"),
+                indicator: "red",
+                message: __("No email address is stored for this employee.<br>Please update the Employee record before sending this Email."),
+              });
+            }
+          },
+        });
+      });
       const btn = frm.add_custom_button("View Case History", function () {
         frappe.set_route("query-report", "Case History", {
           case_id: frm.doc.case_id,
