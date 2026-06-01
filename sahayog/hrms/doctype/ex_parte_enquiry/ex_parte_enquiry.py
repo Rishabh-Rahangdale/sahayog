@@ -45,3 +45,36 @@ class ExParteEnquiry(Document):
 			# fallback autoname if no case linked
 			self.name = frappe.model.naming.make_autoname("EXP-.#####")
 
+	def on_submit(self):
+		"""
+		Auto-send Ex Parte Enquiry email on submit using centralized utility.
+		"""
+		try:
+			from sahayog.utils.hr_utils import send_hr_workflow_email
+			# Explicitly specifying print format
+			send_hr_workflow_email(self.name, "Ex Parte Enquiry", print_format="Ex Parte Enquiry")
+
+			frappe.msgprint(
+				"Ex Parte Enquiry submitted successfully and email sent to employee.",
+				indicator="green"
+			)
+
+		except Exception:
+			# Never block submit
+			frappe.log_error(
+				frappe.get_traceback(),
+				"Auto Ex Parte Enquiry Email Failed on Submit"
+			)
+
+@frappe.whitelist()
+def check_employee_email(employee):
+	"""Return employee's email if exists, otherwise None."""
+	emp = frappe.get_doc("Employee", employee)
+	return emp.company_email if emp.company_email else None
+
+@frappe.whitelist()
+def send_ex_parte_enquiry_email(docname):
+	"""Send Ex Parte Enquiry Email using centralized dynamic utility."""
+	from sahayog.utils.hr_utils import send_hr_workflow_email
+	return send_hr_workflow_email(docname, "Ex Parte Enquiry", print_format="Ex Parte Enquiry")
+
